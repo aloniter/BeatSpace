@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BeatSpace - Mixed Reality DJ Experience</title>
+    <title>BeatSpace MR - Pure Mixed Reality</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/styles.css">
     
@@ -17,203 +17,98 @@
 <body>
     <div id="ui-overlay">
         <div id="start-screen">
-            <h1>🎧 BeatSpace</h1>
-            <p>Mixed Reality DJ Experience</p>
-            <button id="start-button">Enter VR Party</button>
-            <button id="enable-audio">Enable Audio</button>
+            <h1>🏠 BeatSpace MR</h1>
+            <p>Pure Mixed Reality DJ in Your Room</p>
+            <p style="color: #ff6b6b; font-size: 14px;">⚠️ Quest 3 Only - Requires Passthrough</p>
+            <button id="start-button">�� Start Mixed Reality</button>
+            <button id="enable-audio">🎵 Enable Audio</button>
         </div>
         
         <div id="controls" style="display: none;">
             <button id="spawn-dj">Spawn DJ</button>
+            <button id="place-dj-here" style="background: #00ff80; color: black;">📍 PLACE DJ IN MY ROOM</button>
             <button id="change-music">Change Track</button>
             <button id="toggle-effects">Toggle Effects</button>
             <button id="force-passthrough" style="background: #ff0080; color: white;">🔥 FORCE PASSTHROUGH</button>
         </div>
     </div>
 
-    <!-- A-Frame VR Scene -->
+    <!-- A-Frame PURE Mixed Reality Scene - NO VR MODE -->
     <a-scene 
         id="scene"
         embedded 
         style="height: 100vh; width: 100vw; background: transparent;"
-        vr-mode-ui="enabled: true"
+        vr-mode-ui="enabled: false"
+        ar-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
-        renderer="alpha: true; clearColor: 0x000000; clearAlpha: 0; antialias: true"
-        webxr="requiredFeatures: local-floor,hand-tracking; optionalFeatures: plane-detection,depth-sensing,anchors"
-        quest-passthrough>
+        renderer="alpha: true; clearColor: 0x000000; clearAlpha: 0; antialias: true; colorManagement: true"
+        webxr="requiredFeatures: local; optionalFeatures: local-floor,hand-tracking,plane-detection,depth-sensing,anchors,hit-test"
+        background="transparent: true"
+        environment="preset: none">
         
         <!-- Assets -->
         <a-assets>
-            <!-- DJ Character Model (we'll create a simple geometric DJ) -->
-            <a-mixin id="dj-body" 
-                geometry="primitive: cylinder; height: 2; radius: 0.3"
-                material="color: #4CC3D9; metalness: 0.2">
-            </a-mixin>
-            
-            <a-mixin id="dj-head"
-                geometry="primitive: sphere; radius: 0.25"
-                material="color: #FFC65D">
-            </a-mixin>
-            
-            <a-mixin id="dj-arm"
-                geometry="primitive: cylinder; height: 0.8; radius: 0.1"
-                material="color: #FFC65D">
-            </a-mixin>
-            
-            <!-- DJ Deck -->
-            <a-mixin id="dj-deck"
-                geometry="primitive: box; width: 2; height: 0.2; depth: 1"
-                material="color: #333; metalness: 0.8">
-            </a-mixin>
-            
             <!-- Audio Sources -->
             <audio id="track1" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbpYzMtFGQ0xq2r3Q3eH6DQJKBqUPNmIJpqIihq2Z6K8RhYrYydrWFgKKoaWqQaKKXqKCdaWqKa2miaWurk2Fhk3FZsYxhO2VjOKipZKCNaWqOaKKXqJ+daWqKa2miaGurk2Fhk3FZsYxhO2VjOKipZKCNaJ2CqaKeaKKXqJ+daWqKa2miaGurk2Fhk3FZsYxhO2VjOKipZKCNaZ2CqaKeaKKXqJ+daWqKa2miaGurk2Fhk3FZsYxhO2VjOKipZKCNaJ2CqaKeaKKXqJ+daWqKa2miaGurk2Fhk3FZsYxhO2VjOKipZKCNaZ2CqaKeaKKXqJ+daWqKa2miaGurk2Fhk3FZsYxhO2VjOKipZKCNaJ2CqaKeaKKXqJ+daWqKa2miaGurk2Fhk3FZsYxhO2VjOKipZKCNaZ2CqaKebJrQu+qRlX1sY3Fd" preload="auto"></audio>
         </a-assets>
 
-        <!-- Camera Rig for VR -->
-        <a-entity id="cameraRig" position="0 1.6 3">
-            <a-camera 
-                id="camera"
-                look-controls 
-                wasd-controls="enabled: false"
-                cursor="rayOrigin: mouse">
-                
-                <!-- Hand Controllers -->
-                <a-entity 
-                    id="leftHand"
-                    laser-controls="hand: left"
-                    raycaster="objects: .interactive"
-                    position="-0.3 -0.5 -0.3">
-                </a-entity>
-                
-                <a-entity 
-                    id="rightHand"
-                    laser-controls="hand: right"
-                    raycaster="objects: .interactive"
-                    position="0.3 -0.5 -0.3">
-                </a-entity>
-            </a-camera>
-        </a-entity>
-
-        <!-- DJ Character Group -->
-        <a-entity id="dj-character" position="0 0 -2" visible="false">
-            <!-- DJ Body -->
-            <a-entity mixin="dj-body" position="0 1 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000">
-                <!-- DJ Head -->
-                <a-entity mixin="dj-head" position="0 1.2 0">
-                    <!-- DJ Headphones -->
-                    <a-torus 
-                        position="0 0.1 0" 
-                        rotation="90 0 0"
-                        radius-outer="0.3" 
-                        radius-inner="0.25"
-                        material="color: #000; metalness: 0.8">
-                    </a-torus>
-                    
-                    <!-- DJ Eyes -->
-                    <a-sphere position="-0.08 0 0.2" radius="0.03" material="color: #000"></a-sphere>
-                    <a-sphere position="0.08 0 0.2" radius="0.03" material="color: #000"></a-sphere>
-                </a-entity>
-                
-                <!-- Left Arm -->
-                <a-entity mixin="dj-arm" 
-                    position="-0.4 0.5 0" 
-                    rotation="0 0 -30"
-                    animation="property: rotation; to: 0 0 -45; dir: alternate; loop: true; dur: 2000">
-                </a-entity>
-                
-                <!-- Right Arm -->
-                <a-entity mixin="dj-arm" 
-                    position="0.4 0.5 0" 
-                    rotation="0 0 30"
-                    animation="property: rotation; to: 0 0 45; dir: alternate; loop: true; dur: 1800">
-                </a-entity>
+        <!-- Camera for Mixed Reality -->
+        <a-camera 
+            id="camera"
+            look-controls="enabled: true" 
+            wasd-controls="enabled: false"
+            position="0 1.6 0"
+            cursor="rayOrigin: mouse">
+            
+            <!-- Hand Tracking for Mixed Reality -->
+            <a-entity 
+                id="leftHand"
+                hand-tracking-controls="hand: left"
+                position="-0.3 -0.5 -0.3">
             </a-entity>
             
-            <!-- DJ Deck -->
-            <a-entity mixin="dj-deck" position="0 0.8 0.5">
-                <!-- Turntables -->
-                <a-cylinder 
-                    position="-0.6 0.1 0" 
-                    radius="0.25" 
-                    height="0.05"
-                    material="color: #222"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
-                    <a-cylinder 
-                        radius="0.2" 
-                        height="0.01"
-                        material="color: #444">
-                    </a-cylinder>
-                </a-cylinder>
-                
-                <a-cylinder 
-                    position="0.6 0.1 0" 
-                    radius="0.25" 
-                    height="0.05"
-                    material="color: #222"
-                    animation="property: rotation; to: 0 -360 0; loop: true; dur: 2800">
-                    <a-cylinder 
-                        radius="0.2" 
-                        height="0.01"
-                        material="color: #444">
-                    </a-cylinder>
-                </a-cylinder>
-                
-                <!-- Mixer Controls -->
-                <a-box position="0 0.1 -0.3" width="0.8" height="0.1" depth="0.4" material="color: #111">
-                    <!-- Knobs -->
-                    <a-cylinder position="-0.2 0.05 0" radius="0.03" height="0.05" material="color: #ff0000"></a-cylinder>
-                    <a-cylinder position="0 0.05 0" radius="0.03" height="0.05" material="color: #00ff00"></a-cylinder>
-                    <a-cylinder position="0.2 0.05 0" radius="0.03" height="0.05" material="color: #0000ff"></a-cylinder>
-                </a-box>
+            <a-entity 
+                id="rightHand"
+                hand-tracking-controls="hand: right"
+                position="0.3 -0.5 -0.3">
             </a-entity>
-            
-            <!-- Particle Effects for Music -->
-            <a-entity id="music-particles" position="0 2 0"></a-entity>
-        </a-entity>
+        </a-camera>
 
-        <!-- Floor Reference (for room tracking) -->
-        <a-plane 
-            id="floor-reference"
-            position="0 0 0" 
-            rotation="-90 0 0" 
-            width="10" 
-            height="10" 
-            material="color: #7BC8A4; opacity: 0.1"
-            visible="false">
-        </a-plane>
-
-        <!-- Lighting -->
-        <a-light type="ambient" color="#404040" intensity="0.5"></a-light>
-        <a-light type="directional" position="0 10 0" intensity="0.8"></a-light>
+        <!-- Mixed Reality Scene - DJ will be placed dynamically -->
         
-        <!-- Party Lights -->
-        <a-light 
-            id="party-light-1"
-            type="point" 
-            position="-2 3 -2" 
-            color="#ff0080"
-            intensity="2"
-            animation="property: color; to: #0080ff; dir: alternate; loop: true; dur: 1000">
-        </a-light>
-        
-        <a-light 
-            id="party-light-2"
-            type="point" 
-            position="2 3 -2" 
-            color="#0080ff"
-            intensity="2"
-            animation="property: color; to: #ff0080; dir: alternate; loop: true; dur: 1200">
-        </a-light>
+        <!-- Minimal lighting for mixed reality -->
+        <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
 
     </a-scene>
 
     <!-- Scripts -->
-    <script src="js/quest-passthrough.js"></script>
-    <script src="js/passthrough-debug.js"></script>
-    <script src="js/audio-manager.js"></script>
-    <script src="js/dj-character.js"></script>
-    <script src="js/room-tracking.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/audio-manager.js?v=3"></script>
+    <script src="js/pure-mixed-reality.js?v=3"></script>
+    
+    <!-- Force Mixed Reality Mode -->
+    <script>
+        // Disable all VR mode functionality
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('🏠 FORCING PURE MIXED REALITY MODE');
+            
+            // Remove VR mode UI completely
+            const scene = document.querySelector('a-scene');
+            if (scene) {
+                scene.setAttribute('vr-mode-ui', 'enabled: false');
+                scene.setAttribute('ar-mode-ui', 'enabled: false');
+                console.log('✅ VR UI disabled, AR-only mode active');
+            }
+            
+            // Force button text update
+            setTimeout(() => {
+                const startBtn = document.getElementById('start-button');
+                if (startBtn) {
+                    startBtn.textContent = '🏠 Start Mixed Reality';
+                    startBtn.style.background = 'linear-gradient(45deg, #00ff80, #0080ff)';
+                    console.log('✅ Button forced to Mixed Reality mode');
+                }
+            }, 100);
+        });
+    </script>
 </body>
-</html> 
+</html>
