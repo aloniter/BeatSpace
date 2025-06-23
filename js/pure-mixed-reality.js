@@ -1,30 +1,94 @@
-// Pure Mixed Reality System - ONLY Mixed Reality, NO VR Mode
-class PureMixedRealityApp {
+// Pure Mixed Reality System - QUEST 3 ONLY
+// Forces AR mode with passthrough, no VR fallback
+
+class PureMixedReality {
     constructor() {
-        this.arSession = null;
-        this.djPlaced = false;
+        this.scene = null;
+        this.camera = null;
+        this.dj = null;
+        this.isARActive = false;
         this.audioManager = null;
-        this.isPassthroughActive = false;
         
+        console.log('🏠 Pure Mixed Reality System Initialized');
         this.init();
     }
 
     init() {
-        console.log('🏠 Initializing PURE Mixed Reality App...');
+        // Wait for DOM and A-Frame to load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.setup());
+        } else {
+            this.setup();
+        }
+    }
+
+    setup() {
+        this.scene = document.querySelector('a-scene');
+        this.camera = document.querySelector('#camera');
+        
+        // Force AR-only mode
+        this.forceARMode();
+        
+        // Setup UI
         this.setupUI();
-        this.setupAudio();
-        console.log('✅ Pure Mixed Reality App ready');
+        
+        // Initialize audio manager
+        if (window.AudioManager) {
+            this.audioManager = new AudioManager();
+        }
+        
+        console.log('✅ Pure Mixed Reality setup complete');
+    }
+
+    forceARMode() {
+        if (!this.scene) return;
+        
+        // FORCE AR-only settings
+        this.scene.setAttribute('vr-mode-ui', 'enabled: false');
+        this.scene.setAttribute('ar-mode-ui', 'enabled: false');
+        this.scene.setAttribute('device-orientation-permission-ui', 'enabled: false');
+        
+        // Force transparent background
+        this.scene.setAttribute('background', 'transparent: true');
+        this.scene.setAttribute('environment', 'preset: none');
+        
+        // Force renderer settings for transparency
+        this.scene.setAttribute('renderer', 
+            'alpha: true; clearColor: 0x000000; clearAlpha: 0; antialias: true; colorManagement: true'
+        );
+        
+        console.log('🔥 FORCED AR-ONLY MODE - No VR fallback');
     }
 
     setupUI() {
-        // Hide VR button, only show Mixed Reality button
+        // FORCE Mixed Reality button text and remove all VR references
         const startButton = document.getElementById('start-button');
         if (startButton) {
+            // Force update button text and style
             startButton.textContent = '🏠 Start Mixed Reality';
-            startButton.addEventListener('click', (e) => {
+            startButton.innerHTML = '🏠 Start Mixed Reality';
+            startButton.style.background = 'linear-gradient(45deg, #00ff80, #0080ff)';
+            startButton.style.color = 'white';
+            
+            // Remove any existing event listeners
+            const newButton = startButton.cloneNode(true);
+            startButton.parentNode.replaceChild(newButton, startButton);
+            
+            // Add new event listener
+            newButton.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.startMixedReality();
             });
+        }
+
+        // Update page title and header
+        document.title = 'BeatSpace MR - Pure Mixed Reality';
+        const header = document.querySelector('h1');
+        if (header) {
+            header.textContent = '🏠 BeatSpace MR';
+            header.style.background = 'linear-gradient(45deg, #00ff80, #0080ff)';
+            header.style.webkitBackgroundClip = 'text';
+            header.style.webkitTextFillColor = 'transparent';
         }
 
         // Update other buttons
@@ -36,357 +100,231 @@ class PureMixedRealityApp {
             });
         }
 
-        // Place DJ button
-        const placeDjBtn = document.getElementById('place-dj-here');
-        if (placeDjBtn) {
-            placeDjBtn.textContent = '📍 PLACE DJ IN MY ROOM';
-            placeDjBtn.addEventListener('click', (e) => {
+        // Control buttons
+        const placeDJBtn = document.getElementById('place-dj-here');
+        if (placeDJBtn) {
+            placeDJBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.placeDJInRoom();
+                this.placeDJHere();
             });
         }
-    }
 
-    async setupAudio() {
-        // Initialize audio with gameplay music
-        if (window.AudioManager) {
-            this.audioManager = new AudioManager();
-            console.log('🎵 Audio manager ready for mixed reality');
+        const forcePassthroughBtn = document.getElementById('force-passthrough');
+        if (forcePassthroughBtn) {
+            forcePassthroughBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.forcePassthrough();
+            });
         }
     }
 
     async startMixedReality() {
-        console.log('🏠 Starting PURE Mixed Reality Mode...');
+        console.log('🚀 Starting PURE Mixed Reality...');
         
-        // Check WebXR AR support
-        if (!navigator.xr) {
-            this.showError('WebXR not supported. Please use Meta Quest 3 browser.');
-            return;
-        }
-
         try {
-            // FORCE AR mode only
-            const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-            
-            if (!arSupported) {
-                this.showError('Mixed Reality not supported. Please enable passthrough on Quest 3 and try again.');
-                return;
+            // Check WebXR support
+            if (!navigator.xr) {
+                throw new Error('WebXR not supported');
             }
 
-            // Request AR session (this enables passthrough)
-            this.arSession = await navigator.xr.requestSession('immersive-ar', {
-                requiredFeatures: ['local'],
-                optionalFeatures: ['local-floor', 'hand-tracking', 'plane-detection', 'anchors']
-            });
+            // FORCE AR session only
+            const isARSupported = await navigator.xr.isSessionSupported('immersive-ar');
+            if (!isARSupported) {
+                throw new Error('AR not supported on this device');
+            }
 
-            console.log('✅ Mixed Reality session created!');
-            this.isPassthroughActive = true;
+            console.log('✅ AR supported, starting session...');
             
-            // Setup the AR session
-            this.setupARSession();
-            
-            // Hide start screen, show controls
+            // Hide start screen
             document.getElementById('start-screen').style.display = 'none';
-            document.getElementById('controls').style.display = 'flex';
+            document.getElementById('controls').style.display = 'block';
             
-            // Start audio immediately
-            if (this.audioManager) {
-                await this.audioManager.start();
-                await this.audioManager.startPerformance();
-            }
+            // Start AR session
+            await this.startARSession();
             
-            this.showNotification('🏠 Mixed Reality Active! You should see your room now!', 'success');
-            
-            // Auto-place DJ after 3 seconds
-            setTimeout(() => {
-                this.placeDJInRoom();
-            }, 3000);
-
         } catch (error) {
             console.error('❌ Mixed Reality failed:', error);
-            this.showError('Failed to start Mixed Reality. Please enable passthrough on your Quest 3 and try again.');
+            this.showError('Mixed Reality requires Quest 3 with passthrough enabled');
         }
     }
 
-    setupARSession() {
-        console.log('🔧 Setting up AR session for real room...');
-        
-        const scene = document.querySelector('a-scene');
-        
-        // FORCE complete transparency
-        this.forcePassthroughRendering(scene);
-        
-        // Setup reference space for room tracking
-        this.arSession.requestReferenceSpace('local-floor').then(referenceSpace => {
-            console.log('🏠 Got room reference space');
-            this.setupRoomInteraction(referenceSpace);
-        }).catch(() => {
-            // Fallback to local space
-            this.arSession.requestReferenceSpace('local').then(referenceSpace => {
-                console.log('🏠 Got local reference space');
-                this.setupRoomInteraction(referenceSpace);
+    async startARSession() {
+        try {
+            // Request AR session with passthrough
+            const session = await navigator.xr.requestSession('immersive-ar', {
+                requiredFeatures: ['local'],
+                optionalFeatures: [
+                    'local-floor',
+                    'hand-tracking',
+                    'plane-detection',
+                    'depth-sensing',
+                    'anchors',
+                    'hit-test'
+                ]
             });
-        });
 
-        // Listen for session end
-        this.arSession.addEventListener('end', () => {
-            console.log('Mixed Reality session ended');
-            this.isPassthroughActive = false;
-            this.showNotification('Mixed Reality session ended', 'info');
-        });
-    }
-
-    forcePassthroughRendering(scene) {
-        console.log('👁️ FORCING passthrough rendering...');
-        
-        // Remove ALL backgrounds and environments
-        scene.removeAttribute('background');
-        scene.removeAttribute('environment');
-        
-        // Remove any sky elements
-        const skies = scene.querySelectorAll('a-sky');
-        skies.forEach(sky => sky.remove());
-        
-        // Force renderer to be completely transparent
-        if (scene.renderer) {
-            const renderer = scene.renderer;
+            console.log('🎯 AR Session started successfully');
+            this.isARActive = true;
             
-            // Make background completely transparent
-            renderer.setClearColor(0x000000, 0); // Transparent black
-            renderer.domElement.style.background = 'transparent';
-            renderer.domElement.style.backgroundColor = 'transparent';
+            // Auto-spawn DJ after 3 seconds
+            setTimeout(() => {
+                this.spawnDJ();
+            }, 3000);
             
-            // Disable auto-clearing to see through
-            renderer.autoClear = false;
-            renderer.autoClearColor = false;
-            renderer.autoClearDepth = false;
-            renderer.autoClearStencil = false;
-        }
-        
-        // Set scene canvas to transparent
-        const canvas = scene.canvas;
-        if (canvas) {
-            canvas.style.background = 'transparent';
-            canvas.style.backgroundColor = 'transparent';
-        }
-        
-        console.log('✅ Passthrough rendering forced - you should see your room!');
-    }
-
-    setupRoomInteraction(referenceSpace) {
-        console.log('🏠 Setting up room interaction...');
-        this.referenceSpace = referenceSpace;
-        
-        // Show room scanning message
-        this.showRoomScanMessage();
-    }
-
-    showRoomScanMessage() {
-        const scene = document.querySelector('a-scene');
-        
-        // Create floating text in your room
-        const scanText = document.createElement('a-text');
-        scanText.id = 'room-scan-text';
-        scanText.setAttribute('position', '0 1.5 -1');
-        scanText.setAttribute('value', 'MIXED REALITY ACTIVE!\nLook around your room\nDJ will appear shortly...');
-        scanText.setAttribute('align', 'center');
-        scanText.setAttribute('color', '#00ff00');
-        scanText.setAttribute('width', '8');
-        scanText.setAttribute('material', 'emissive: #00ff00; emissiveIntensity: 0.5');
-        
-        scene.appendChild(scanText);
-        
-        // Remove after 5 seconds
-        setTimeout(() => {
-            if (scanText.parentNode) {
-                scanText.remove();
+            // Start audio
+            if (this.audioManager) {
+                this.audioManager.startMusic();
             }
-        }, 5000);
-    }
-
-    placeDJInRoom() {
-        console.log('🎤 Placing DJ in your real room...');
-        
-        const scene = document.querySelector('a-scene');
-        
-        // Remove existing DJ
-        const existingDJ = scene.querySelector('#dj-character');
-        if (existingDJ) {
-            existingDJ.remove();
+            
+        } catch (error) {
+            console.error('❌ AR Session failed:', error);
+            throw error;
         }
-        
-        // Create DJ for mixed reality
-        const djCharacter = this.createMixedRealityDJ();
-        scene.appendChild(djCharacter);
-        
-        // Position DJ in room (2 meters in front, at floor level)
-        djCharacter.setAttribute('position', '0 0 -2');
-        djCharacter.setAttribute('visible', 'true');
-        djCharacter.setAttribute('scale', '0.6 0.6 0.6'); // Smaller for real room
-        
-        this.djPlaced = true;
-        
-        // Add room lighting effects
-        this.addRoomLights();
-        
-        // Show success message
-        this.showSuccessMessage();
-        
-        console.log('✅ DJ placed in your real room!');
     }
 
-    createMixedRealityDJ() {
-        console.log('🎤 Creating DJ for your real room...');
+    spawnDJ() {
+        if (this.dj) {
+            this.dj.remove();
+        }
+
+        console.log('🎧 Spawning DJ in your room...');
         
         // Create DJ character optimized for mixed reality
-        const djCharacter = document.createElement('a-entity');
-        djCharacter.id = 'dj-character';
+        this.dj = document.createElement('a-entity');
+        this.dj.setAttribute('id', 'dj-character');
+        this.dj.setAttribute('position', '0 0 -2'); // 2 meters in front
         
-        // DJ Body (glowing for visibility in real room)
-        const djBody = document.createElement('a-cylinder');
-        djBody.setAttribute('geometry', 'height: 2; radius: 0.3');
-        djBody.setAttribute('material', 'color: #4CC3D9; emissive: #4CC3D9; emissiveIntensity: 0.3');
-        djBody.setAttribute('position', '0 1 0');
-        djBody.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 8000');
+        // DJ Body - Glowing for visibility in MR
+        const body = document.createElement('a-cylinder');
+        body.setAttribute('height', '1.5');
+        body.setAttribute('radius', '0.25');
+        body.setAttribute('color', '#00ff80');
+        body.setAttribute('material', 'emissive: #00ff80; emissiveIntensity: 0.3');
+        body.setAttribute('position', '0 0.75 0');
         
-        // DJ Head (bright and visible)
-        const djHead = document.createElement('a-sphere');
-        djHead.setAttribute('geometry', 'radius: 0.25');
-        djHead.setAttribute('material', 'color: #FFC65D; emissive: #FFC65D; emissiveIntensity: 0.2');
-        djHead.setAttribute('position', '0 1.2 0');
+        // DJ Head - Glowing
+        const head = document.createElement('a-sphere');
+        head.setAttribute('radius', '0.2');
+        head.setAttribute('color', '#0080ff');
+        head.setAttribute('material', 'emissive: #0080ff; emissiveIntensity: 0.4');
+        head.setAttribute('position', '0 1.7 0');
         
-        // DJ Headphones (glowing)
-        const headphones = document.createElement('a-torus');
-        headphones.setAttribute('geometry', 'radiusOuter: 0.3; radiusInner: 0.25');
-        headphones.setAttribute('material', 'color: #ff0080; emissive: #ff0080; emissiveIntensity: 0.4');
-        headphones.setAttribute('position', '0 0.1 0');
-        headphones.setAttribute('rotation', '90 0 0');
+        // DJ Turntables
+        const deck = document.createElement('a-box');
+        deck.setAttribute('width', '1.5');
+        deck.setAttribute('height', '0.1');
+        deck.setAttribute('depth', '0.8');
+        deck.setAttribute('color', '#333');
+        deck.setAttribute('material', 'metalness: 0.8; emissive: #333; emissiveIntensity: 0.1');
+        deck.setAttribute('position', '0 1.0 0.3');
         
-        // DJ Deck (visible in real room)
-        const djDeck = document.createElement('a-box');
-        djDeck.setAttribute('geometry', 'width: 1.5; height: 0.15; depth: 0.8');
-        djDeck.setAttribute('material', 'color: #333; emissive: #333; emissiveIntensity: 0.1');
-        djDeck.setAttribute('position', '0 0.8 0.4');
+        // Add components to DJ
+        this.dj.appendChild(body);
+        this.dj.appendChild(head);
+        this.dj.appendChild(deck);
         
-        // Turntables (animated)
-        const turntable1 = document.createElement('a-cylinder');
-        turntable1.setAttribute('geometry', 'radius: 0.2; height: 0.03');
-        turntable1.setAttribute('material', 'color: #222; emissive: #0080ff; emissiveIntensity: 0.2');
-        turntable1.setAttribute('position', '-0.4 0.02 0');
-        turntable1.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 3000');
+        // Add to scene
+        this.scene.appendChild(this.dj);
         
-        const turntable2 = document.createElement('a-cylinder');
-        turntable2.setAttribute('geometry', 'radius: 0.2; height: 0.03');
-        turntable2.setAttribute('material', 'color: #222; emissive: #ff0080; emissiveIntensity: 0.2');
-        turntable2.setAttribute('position', '0.4 0.02 0');
-        turntable2.setAttribute('animation', 'property: rotation; to: 0 -360 0; loop: true; dur: 2800');
+        // Add room lighting
+        this.addRoomLighting();
         
-        // Assemble DJ
-        djHead.appendChild(headphones);
-        djBody.appendChild(djHead);
-        djDeck.appendChild(turntable1);
-        djDeck.appendChild(turntable2);
-        djCharacter.appendChild(djBody);
-        djCharacter.appendChild(djDeck);
-        
-        return djCharacter;
+        console.log('✅ DJ spawned in your room!');
     }
 
-    addRoomLights() {
-        console.log('💡 Adding party lights to your room...');
+    addRoomLighting() {
+        // Remove existing party lights
+        const existingLights = this.scene.querySelectorAll('[id^="party-light"]');
+        existingLights.forEach(light => light.remove());
         
-        const scene = document.querySelector('a-scene');
-        const colors = ['#ff0080', '#0080ff', '#00ff80', '#ff8000'];
+        // Add party lights around the DJ
+        const colors = ['#ff0080', '#00ff80', '#0080ff', '#ff8000'];
+        const positions = [
+            [-1.5, 2, -1.5],
+            [1.5, 2, -1.5],
+            [-1.5, 2, -2.5],
+            [1.5, 2, -2.5]
+        ];
         
-        // Add floating party lights around the DJ
-        for (let i = 0; i < 4; i++) {
+        positions.forEach((pos, index) => {
             const light = document.createElement('a-light');
-            light.id = `room-party-light-${i}`;
+            light.setAttribute('id', `party-light-${index}`);
             light.setAttribute('type', 'point');
-            light.setAttribute('color', colors[i]);
-            light.setAttribute('intensity', '2');
-            light.setAttribute('distance', '8');
+            light.setAttribute('color', colors[index]);
+            light.setAttribute('intensity', '0.5');
+            light.setAttribute('distance', '5');
+            light.setAttribute('position', pos.join(' '));
             
-            // Position lights around the DJ in your room
-            const angle = (i / 4) * Math.PI * 2;
-            const x = Math.cos(angle) * 3;
-            const z = Math.sin(angle) * 3 - 2; // Offset for DJ position
-            light.setAttribute('position', `${x} 2 ${z}`);
+            // Add glowing sphere for visibility
+            const sphere = document.createElement('a-sphere');
+            sphere.setAttribute('radius', '0.05');
+            sphere.setAttribute('color', colors[index]);
+            sphere.setAttribute('material', `emissive: ${colors[index]}; emissiveIntensity: 0.8`);
+            light.appendChild(sphere);
             
-            // Animate light colors
-            light.setAttribute('animation', `property: color; to: ${colors[(i + 1) % colors.length]}; dir: alternate; loop: true; dur: ${1000 + i * 200}`);
-            
-            scene.appendChild(light);
+            this.scene.appendChild(light);
+        });
+    }
+
+    placeDJHere() {
+        if (!this.dj) {
+            this.spawnDJ();
+            return;
         }
+        
+        // Place DJ at current camera position
+        const cameraPos = this.camera.getAttribute('position');
+        const newPos = {
+            x: cameraPos.x,
+            y: 0,
+            z: cameraPos.z - 1.5 // 1.5m in front of player
+        };
+        
+        this.dj.setAttribute('position', `${newPos.x} ${newPos.y} ${newPos.z}`);
+        console.log('📍 DJ placed at your location');
     }
 
-    showSuccessMessage() {
-        const scene = document.querySelector('a-scene');
+    forcePassthrough() {
+        console.log('🔥 Forcing passthrough mode...');
         
-        const success = document.createElement('a-text');
-        success.id = 'success-message';
-        success.setAttribute('position', '0 2.5 -1.5');
-        success.setAttribute('value', '🎉 DJ IN YOUR ROOM!\nMixed Reality Party Started!');
-        success.setAttribute('align', 'center');
-        success.setAttribute('color', '#00ff00');
-        success.setAttribute('width', '8');
-        success.setAttribute('material', 'emissive: #00ff00; emissiveIntensity: 0.5');
+        // Force scene transparency
+        this.scene.setAttribute('background', 'transparent: true');
+        this.scene.style.background = 'transparent';
+        document.body.style.background = 'transparent';
         
-        scene.appendChild(success);
+        // Force renderer alpha
+        this.scene.setAttribute('renderer', 
+            'alpha: true; clearColor: 0x000000; clearAlpha: 0; antialias: true; colorManagement: true'
+        );
         
-        // Auto-remove after 4 seconds
-        setTimeout(() => {
-            if (success.parentNode) {
-                success.remove();
-            }
-        }, 4000);
+        console.log('✅ Passthrough forced');
     }
 
-    async enableAudio() {
-        console.log('🔊 Enabling audio for mixed reality...');
-        
+    enableAudio() {
         if (this.audioManager) {
-            await this.audioManager.start();
-            this.showNotification('🎵 Audio enabled! Your gameplay music is ready!', 'success');
+            this.audioManager.enableAudio();
         }
-    }
-
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
-            color: white;
-            padding: 15px;
-            border-radius: 5px;
-            z-index: 1000;
-            max-width: 300px;
-        `;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 4000);
     }
 
     showError(message) {
-        this.showNotification(message, 'error');
-        console.error('❌', message);
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.9); color: white; padding: 20px;
+            border-radius: 10px; text-align: center; z-index: 9999;
+            max-width: 300px; font-size: 16px;
+        `;
+        errorDiv.innerHTML = `
+            <h3>⚠️ Error</h3>
+            <p>${message}</p>
+            <button onclick="this.parentElement.remove()" style="margin-top: 10px; padding: 8px 16px; background: white; color: red; border: none; border-radius: 5px;">OK</button>
+        `;
+        document.body.appendChild(errorDiv);
     }
 }
 
-// Initialize Pure Mixed Reality App
-window.addEventListener('DOMContentLoaded', () => {
-    console.log('🏠 Starting Pure Mixed Reality App...');
-    window.pureMRApp = new PureMixedRealityApp();
+// Initialize when page loads
+window.addEventListener('load', () => {
+    console.log('🏠 Initializing Pure Mixed Reality System...');
+    window.pureMR = new PureMixedReality();
 });
-
-// Export for global access
-window.PureMixedRealityApp = PureMixedRealityApp;
